@@ -365,6 +365,13 @@ size_t HashTable<K,V,Prober,Hash,KEqual>::size() const
 template<typename K, typename V, typename Prober, typename Hash, typename KEqual>
 void HashTable<K,V,Prober,Hash,KEqual>::insert(const ItemType& p)
 {
+    /*
+    double count = 0;
+    for (int i = 0; i < (int) table_.size(); i++){
+      if (table_[i]) { count++; }
+    }
+    cout << "count: " << count << ", usedLoc: " << usedLoc_ << endl;
+    */
     if (usedLoc_ / CAPACITIES[mIndex_] >= resizeAlpha_){
         resize();
     }
@@ -373,9 +380,14 @@ void HashTable<K,V,Prober,Hash,KEqual>::insert(const ItemType& p)
         throw std::logic_error("No open location");
     }
     else {
-        HashItem* newItem = new HashItem(p);
-        table_[loc] = newItem;
-        usedLoc_++;
+        if (table_[loc] && table_[loc]->deleted == false){
+          table_[loc]->item.second = p.second;
+        }
+        else {
+          HashItem* newItem = new HashItem(p);
+          table_[loc] = newItem;
+          usedLoc_++;
+        }
     }
 }
 
@@ -469,12 +481,13 @@ void HashTable<K,V,Prober,Hash,KEqual>::resize()
         if (table_[i] && table_[i]->deleted == false){
             addBack.push_back(table_[i]->item);
         }
-        else if (table_[i]) { usedLoc_--; }
+        usedLoc_--;
         HashItem* temp = table_[i];
         table_[i] = NULL;
         delete temp;
     }
     table_.clear();
+    usedLoc_ = 0;
     for (int i = 0; i < (int) CAPACITIES[mIndex_]; i++){
         table_.push_back(NULL);
     }
@@ -499,7 +512,7 @@ HASH_INDEX_T HashTable<K,V,Prober,Hash,KEqual>::probe(const KeyType& key) const
         }
         // fill in the condition for this else if statement which should 
         // return 'loc' if the given key exists at this location
-        else if(table_[loc]->item.first == key) {
+        else if (kequal_(table_[loc]->item.first, key) && table_[loc]->deleted == false){
             return loc;
         }
         loc = prober_.next();
